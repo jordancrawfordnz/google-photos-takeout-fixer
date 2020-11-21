@@ -6,6 +6,8 @@ require 'exif'
 require 'active_support/all'
 require 'digest'
 
+EDITED_SUFFIX = '-edited'
+
 no_metadata_file = []
 no_gp_date = []
 no_exif_date = []
@@ -53,7 +55,6 @@ all_files.each do |file_info|
   file_info[:file_content_hash] = Digest::SHA256.hexdigest(File.read(file_info[:file_path]))
 
   if MEDIA_TYPES.include?(file_info[:file_extension])
-    EDITED_SUFFIX = '-edited'
     is_edited = file_info[:file_name].include?(EDITED_SUFFIX)
 
     metadata_file_path = "#{file_info[:file_path]}.json".gsub(EDITED_SUFFIX, '')
