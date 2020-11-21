@@ -1,0 +1,168 @@
+#!/usr/bin/env ruby
+
+require 'json'
+require 'date'
+require 'exif'
+require 'active_support/all'
+require 'digest'
+
+no_metadata_file = []
+no_gp_date = []
+no_exif_date = []
+no_exif_data = []
+times_dont_match = []
+
+unless ARGV.length == 2 || ARGV.length == 3
+  puts "fix_export scan_path time_zone [export_path]"
+  exit
+end
+
+scan_path = ARGV[0]
+time_zone = ARGV[1]
+export_path = ARGV[2]
+Time.zone = time_zone
+
+PHOTO_TYPES = ['jpg', 'heic', 'jpeg', 'png']
+VIDEO_TYPES = ['mp4', 'm4v']
+MEDIA_TYPES = PHOTO_TYPES + VIDEO_TYPES
+
+all_files = Dir.glob("#{scan_path}/*/**").map do |file_path|
+  file_name = file_path.split('/').last
+  directory = file_path.gsub("#{scan_path}/", "").gsub(file_name, "")
+  metadata_file = nil
+
+  file_info = {
+    file_path: file_path,
+    file_name: file_name,
+    file_extension: file_name.split('.').last.downcase,
+    directory: directory,
+    export_path_prefix: 'Unused',
+    export_path: directory,
+    taken_time: nil,
+    file_content_hash: Digest::SHA256.hexdigest(File.read(file_path))
+  }
+end
+
+all_files.each do |file_info|
+  puts "File info: #{file_info.to_json}"
+
+  if MEDIA_TYPES.include?(file_info[:file_extension])
+    EDITED_SUFFIX = '-edited'
+    is_edited = file_info[:file_name].include?(EDITED_SUFFIX)
+
+    metadata_file_path = "#{file_info[:file_path]}.json".gsub(EDITED_SUFFIX, '')
+    puts "Loading metadata: #{metadata_file_path}"
+    if File.exists?(metadata_file_path)
+      metadata_file = JSON.parse(IO.read(metadata_file_path))
+      file_info[:taken_time] = Time.find_zone(time_zone).parse(metadata_file["photoTakenTime"]["formatted"]).in_time_zone(time_zone)
+
+      if file_info[:taken_time]
+        puts "Google Photos Date: #{file_info[:taken_time]}"
+        file_info[:export_path] = "#{file_info[:taken_time].year}"
+        file_info[:export_path_prefix] = is_edited ? 'Edited' : 'Clean'
+        all_files.find { |file| file[:file_path] == metadata_file_path }[:export_path_prefix] = 'Metadata'
+      else
+        puts "No GP Date"
+        no_gp_date << file_info[:file_path]
+      end 
+    else
+      no_metadata_file << file_info[:file_path]
+      puts "No metadata file"
+    end
+  end
+
+  # Check EXIF information lines up - this is informational only
+  if PHOTO_TYPES.include?(file_info[:file_extension])
+    exif_date_format = '%Y:%m:%d %H:%M:%S'
+    exif_fields_by_preference = [
+      'date_time_original',
+      'date_time_digitized',
+      'date_time'
+    ]
+
+    begin
+      exif_data = Exif::Data.new(IO.read(file_info[:file_path]))
+    rescue Exif::NotReadable
+      puts "Caught EXIF not readable exception - no EXIF data"
+      no_exif_data << file_info[:file_path]
+    end
+
+    if exif_data
+      best_exif_capture_time = exif_fields_by_preference.lazy.map do |field|
+        raw_value = exif_data.send(field.to_sym)
+
+        if raw_value
+          begin
+            parsed_value = Time.zone.local_to_utc(Time.strptime(raw_value, exif_date_format)).in_time_zone(Time.zone)
+          rescue ArgumentError
+            parsed_value = nil
+          end
+        else
+          parsed_value = nil
+        end
+
+        parsed_value
+      end.find { |date| !date.nil? }
+
+      if best_exif_capture_time
+        puts "EXIF Date: #{best_exif_capture_time}"
+      else
+        puts "No EXIF Date"
+        no_exif_date << file_info[:file_path]
+      end
+    end
+
+    if best_exif_capture_time && file_info[:taken_time]
+      if best_exif_capture_time == file_info[:taken_time]
+        puts "Times match"
+      else
+        puts "Times don't match"
+        times_dont_match << file_info[:file_path]
+      end
+    end
+  end
+
+  puts
+  puts
+end
+
+# Write duplicate files to a special 'Duplicates' directory with their original paths.
+files_by_hash = all_files.group_by { |file| file[:file_content_hash] }
+files_by_hash.filter { |hash, files| files.length > 1 }.each do |hash, files|
+  files.each do |file|
+    file[:export_path_prefix] = "Duplicate/#{file[:export_path_prefix]}/#{file[:directory]}"
+  end
+end
+
+# Export data if exports enabled
+if export_path
+  puts "Writing files"
+
+  all_files.each do |file_info|
+    full_export_directory = "#{export_path}/#{file_info[:export_path_prefix]}/#{file_info[:export_path]}"
+    file_export_path = "#{full_export_directory}/#{file_info[:file_name]}"
+    FileUtils.mkdir_p(full_export_directory)
+    puts "Writing #{file_info[:export_path]}/#{file_info[:file_name]} to '#{file_export_path}'"
+    FileUtils.cp(file_info[:file_path], file_export_path)
+
+    if file_info[:taken_time]
+      puts "Setting #{file_info[:export_path]}/#{file_info[:file_name]} time to #{file_info[:taken_time].to_time}"
+      FileUtils.touch file_export_path, mtime: file_info[:taken_time].to_time
+    end
+  end
+end
+
+outputs = {
+  "[Not exported] No Metadata File" => no_metadata_file,
+  "[Not exported] No Google Photos Date" => no_gp_date,
+  "[Info] No EXIF Date" => no_exif_date,
+  "[Info] No EXIF Data" => no_exif_data,
+  "[Info] Times don't match" => times_dont_match
+}
+
+outputs.each do |title, file_names|
+  puts "=== #{title} ==="
+  file_names.each { |file_name| puts "- #{file_name}" }
+end
+
+puts "Done"
