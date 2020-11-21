@@ -26,6 +26,8 @@ PHOTO_TYPES = ['jpg', 'heic', 'jpeg', 'png']
 VIDEO_TYPES = ['mp4', 'm4v']
 MEDIA_TYPES = PHOTO_TYPES + VIDEO_TYPES
 
+puts 'Reading the scan path.'
+
 # Perform initial analysis on files to be used later.
 all_files = Dir.glob("#{scan_path}/*/**").map do |file_path|
   puts "Performing initial analysis for #{file_path}."
