@@ -26,7 +26,9 @@ PHOTO_TYPES = ['jpg', 'heic', 'jpeg', 'png']
 VIDEO_TYPES = ['mp4', 'm4v']
 MEDIA_TYPES = PHOTO_TYPES + VIDEO_TYPES
 
+# Perform initial analysis on files to be used later.
 all_files = Dir.glob("#{scan_path}/*/**").map do |file_path|
+  puts "Performing initial analysis for #{file_path}."
   file_name = file_path.split('/').last
   directory = file_path.gsub("#{scan_path}/", "").gsub(file_name, "")
   metadata_file = nil
@@ -43,6 +45,7 @@ all_files = Dir.glob("#{scan_path}/*/**").map do |file_path|
   }
 end
 
+# Perform additional checks on the files.
 all_files.each do |file_info|
   puts "File info: #{file_info.to_json}"
 
@@ -64,7 +67,7 @@ all_files.each do |file_info|
       else
         puts "No GP Date"
         no_gp_date << file_info[:file_path]
-      end 
+      end
     else
       no_metadata_file << file_info[:file_path]
       puts "No metadata file"
