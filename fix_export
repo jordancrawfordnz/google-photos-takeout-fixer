@@ -137,6 +137,8 @@ all_files.each do |file_info|
   GC.start
 end
 
+puts "Finished file checks - detecting duplicates..."
+
 # Write duplicate files to a special 'Duplicates' directory with their original paths.
 files_by_hash = all_files.group_by { |file| file[:file_content_hash] }
 files_by_hash.filter { |hash, files| files.length > 1 }.each do |hash, files|
@@ -147,7 +149,7 @@ end
 
 # Export data if exports enabled
 if export_path
-  puts "Writing files"
+  puts "Writing files..."
 
   all_files.each do |file_info|
     full_export_directory = "#{export_path}/#{file_info[:export_path_prefix]}/#{file_info[:export_path]}"
