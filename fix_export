@@ -16,14 +16,15 @@ no_exif_date = []
 no_exif_data = []
 times_dont_match = []
 
-unless ARGV.length == 2 || ARGV.length == 3
-  puts "fix_export scan_path time_zone [export_path]"
+unless ARGV.length == 3 || ARGV.length == 4
+  puts "fix_export scan_path check_exif time_zone [export_path]"
   exit
 end
 
 scan_path = ARGV[0]
-time_zone = ARGV[1]
-export_path = ARGV[2]
+check_exif = ARGV[1] == 'true'
+time_zone = ARGV[2]
+export_path = ARGV[3]
 Time.zone = time_zone
 
 PHOTO_TYPES = ['jpg', 'heic', 'jpeg', 'png', 'gif']
@@ -97,7 +98,7 @@ all_files.each do |file_info|
   end
 
   # Check EXIF information lines up - this is informational only
-  if PHOTO_TYPES.include?(file_info[:file_extension])
+  if check_exif && PHOTO_TYPES.include?(file_info[:file_extension])
     exif_date_format = '%Y:%m:%d %H:%M:%S'
     exif_fields_by_preference = [
       'date_time_original',
@@ -188,11 +189,14 @@ end
 
 outputs = {
   "[Not exported] No Metadata File" => no_metadata_file,
-  "[Not exported] No Google Photos Date" => no_gp_date,
+  "[Not exported] No Google Photos Date" => no_gp_date
+}
+
+outputs = outputs.merge({
   "[Info] No EXIF Date" => no_exif_date,
   "[Info] No EXIF Data" => no_exif_data,
   "[Info] Times don't match" => times_dont_match
-}
+}) if check_exif
 
 outputs.each do |title, file_names|
   puts "=== #{title} ==="

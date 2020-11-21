@@ -32,13 +32,17 @@ Admittedly the code is a bit of a mess! This was a useful tool for fixing up my 
 1. Ensure you have Ruby and bundler installed.
 1. Install `libexif`, e.g.: `brew install libexif`
 1. Run `bundle install`
-1. Run `./fix_export` as `./fix_export scan_path time_zone [export_path]`
+1. Run `./fix_export` as `./fix_export scan_path check_exif time_zone [export_path]`
 
 ### Arguments
 
 __scan_path__
 
 This is the full path on your disk to scan from, exclude the `/` suffix.
+
+__check_exif__
+
+Set this to 'true' if you'd like to check a photo's internal metadata against Google Photos.
 
 __time_zone__
 
