@@ -42,14 +42,15 @@ all_files = Dir.glob("#{scan_path}/*/**").map do |file_path|
     directory: directory,
     export_path_prefix: 'Unused',
     export_path: directory,
-    taken_time: nil,
-    file_content_hash: Digest::SHA256.hexdigest(File.read(file_path))
+    taken_time: nil
   }
 end
 
 # Perform additional checks on the files.
 all_files.each do |file_info|
   puts "File info: #{file_info.to_json}"
+
+  file_info[:file_content_hash] = Digest::SHA256.hexdigest(File.read(file_info[:file_path]))
 
   if MEDIA_TYPES.include?(file_info[:file_extension])
     EDITED_SUFFIX = '-edited'
