@@ -7,6 +7,7 @@ require 'active_support/all'
 require 'digest'
 
 EDITED_SUFFIX = '-edited'
+EFFECT_SUFFIX = '-EFFECTS'
 ANIMATION_SUFFIX = '-ANIMATION'
 DEFAULT_EXPORT_PATH_PREFIX = 'Unused'
 
@@ -40,7 +41,7 @@ all_files = Dir.glob("#{scan_path}/*/**").map do |file_path|
   directory = file_path.gsub("#{scan_path}/", "").gsub(file_name, "")
   metadata_file = nil
 
-  file_info = {
+  {
     file_path: file_path,
     file_name: file_name,
     file_extension: file_name.split('.').last.downcase,
@@ -78,15 +79,20 @@ all_files.each do |file_info|
         puts "Google Photos Date: #{file_info[:taken_time]}"
         file_info[:export_path] = "#{file_info[:taken_time].year}"
 
-        file_info[:export_path_prefix] = if file_info[:file_name].include?(EDITED_SUFFIX)
-          'Edited'
+        edited_variant_path = "#{scan_path}/#{file_info[:directory]}#{file_info[:file_name].rpartition('.').first}#{EDITED_SUFFIX}.#{file_info[:file_extension]}"
+        puts "Checking for edited version at #{edited_variant_path}"
+        has_edited_version = File.exist?(edited_variant_path)
+        file_info[:export_path_prefix] = if has_edited_version
+          'Pre-Edit Original'
         elsif file_info[:file_name].include?(ANIMATION_SUFFIX)
           'Animation'
+        elsif file_info[:file_name].include?(EFFECT_SUFFIX)
+          'Effect'
         else
           'Clean'
         end
 
-        all_files.find { |file| file[:file_path] == metadata_file_path }[:export_path_prefix] = "#{file_info[:export_path_prefix]}/Metadata"
+        all_files.find { |file| file[:file_path].downcase == metadata_file_path.downcase }[:export_path_prefix] = "#{file_info[:export_path_prefix]}/Metadata"
       else
         puts "No GP Date"
         no_gp_date << file_info[:file_path]
@@ -165,7 +171,8 @@ files_by_hash.filter { |hash, files| files.length > 1 }.each do |hash, files|
   duplicate_identifier = files.map { |file| file[:directory].gsub('/', '') }.sort.join(' - ')
 
   files.each do |file|
-    file[:export_path_prefix] = "Duplicate/#{file[:export_path_prefix]}/#{duplicate_identifier}/#{file[:directory]}"
+    file[:export_path_prefix] = "Duplicate/#{file[:export_path_prefix]}/#{duplicate_identifier}"
+    file[:export_path] = file[:directory]
   end
 end
 
