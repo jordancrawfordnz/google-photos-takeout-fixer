@@ -131,6 +131,10 @@ all_files.each do |file_info|
 
   puts
   puts
+
+  # There may be a memory leak present, or needing to call the garbage collector is simply because I'm running this on a very small VM.
+  # TODO: Find the root cause of this so this can be avoided.
+  GC.start
 end
 
 # Write duplicate files to a special 'Duplicates' directory with their original paths.
