@@ -1,5 +1,11 @@
 # Google Photos Takeout Fixer
 
+---
+
+**Please note:** This project is not actively maintained, it may no longer work and may depend on out of date dependencies.
+
+---
+
 ## What is this, and why?
 
 To get your Google Photos out, you can use Google Takeout. This is the best option since the API won't allow you to download the original files.
